@@ -27,8 +27,8 @@ def main():
                         fill_mode='nearest')
     
     """target size specified here as to be proportional to that of the photo dataset"""
-    # size = (497, 198)
-    trainGene = trainGenerator(20,'data/RR_mint/train','image','mask',data_gen_args,save_to_dir = mint_dir)
+    size = (2485, 990)
+    trainGene = trainGenerator(20,'data/RR_mint/train','image','mask',data_gen_args,save_to_dir = mint_dir, target_size=size)
 
     # to visualise the data augmentation result
     # num_batch = 3
@@ -36,14 +36,14 @@ def main():
     #     if(i >= num_batch):
     #         break
 
-    # size = (497,198,1)
-    model = unet()
+    size = (2485, 990,3)
+    model = unet(input_size=size)
 
     """change the hdf5 name below for training different models"""
     hdf5 = 'mint.hdf5'
 
     model_checkpoint = ModelCheckpoint(hdf5, monitor='loss',verbose=1, save_best_only=True)
-    model.fit_generator(trainGene,steps_per_epoch=300,epochs=1,callbacks=[model_checkpoint])
+    model.fit_generator(trainGene,steps_per_epoch=20,epochs=1,callbacks=[model_checkpoint])
 
     test_dir = "data/RR_mint/test/img"
     test_num, _ = scan_file(test_dir)
