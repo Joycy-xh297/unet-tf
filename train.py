@@ -27,8 +27,8 @@ def main():
                         fill_mode='nearest')
     
     """target size specified here as to be proportional to that of the photo dataset"""
-    size = (497, 198)
-    trainGene = trainGenerator(20,'data/RR_mint/train','image','mask',data_gen_args,save_to_dir = mint_dir,target_size=size)
+    # size = (497, 198)
+    trainGene = trainGenerator(20,'data/RR_mint/train','image','mask',data_gen_args,save_to_dir = mint_dir)
 
     # to visualise the data augmentation result
     # num_batch = 3
@@ -36,8 +36,8 @@ def main():
     #     if(i >= num_batch):
     #         break
 
-    size = (497,198,1)
-    model = unet(input_size=size)
+    # size = (497,198,1)
+    model = unet()
 
     """change the hdf5 name below for training different models"""
     hdf5 = 'mint.hdf5'
