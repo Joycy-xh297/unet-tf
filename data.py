@@ -4,7 +4,7 @@ import numpy as np
 import os, os.path
 import glob
 import skimage.io as io
-import skimage.transform as trans, resize
+import skimage.transform as trans
 import tensorflow as tf
 
 ng = [255, 255, 255]
@@ -13,6 +13,7 @@ bg = [0, 0, 0]
 COLOR_DICT = np.array([ng, bg])
 
 def get_ref(ref_dir, sub_dir1, sub_dir2, sub_dir3, size):
+    print('----------------------reading refs from file-------------------------')
     path1 = ref_dir + sub_dir1
     path2 = ref_dir + sub_dir2
     path3 = ref_dir + sub_dir3
@@ -21,32 +22,42 @@ def get_ref(ref_dir, sub_dir1, sub_dir2, sub_dir3, size):
     collection3 = []
     for file in glob.glob(os.path.join(path1, '*.png')):
         img = io.imread(file)
-        img = resize(img, size)
+        img = trans.resize(img, size)
         collection1.append(img)
     collection1 = np.array(collection1)
-    print("collection1 shape: ", collection1.shape)
+    # print("collection1 shape: ", collection1.shape)
     for file in glob.glob(os.path.join(path2, '*.png')):
         img = io.imread(file)
-        img = resize(img, size)
+        img = trans.resize(img, size)
         collection2.append(img)
     collection2 = np.array(collection2)
-    print("collection2 shape: ", collection2.shape)
+    # print("collection2 shape: ", collection2.shape)
     for file in glob.glob(os.path.join(path3, '*.png')):
         img = io.imread(file)
-        img = resize(img, size)
+        img = trans.resize(img, size)
         collection3.append(img)
     collection3 = np.array(collection3)
-    print("collection3 shape: ", collection3.shape)
+    # print("collection3 shape: ", collection3.shape)
+    print("ref read finished")
     return np.array([collection1, collection2, collection3])
 
 def which_mint(name):
+    print("looking for : ", name)
     mint1 = [line.rstrip('\n') for line in open("data/RR_mint/mint1.txt")]
+    # print("mint1 list: ", mint1)
     mint2 = [line.rstrip('\n') for line in open("data/RR_mint/mint2.txt")]
+    # print("mint2 list: ", mint2) 
     mint3 = [line.rstrip('\n') for line in open("data/RR_mint/mint3.txt")]
+    # print("mint3 list: ", mint3)
     for i,mints in enumerate([mint1, mint2, mint3]):
         for mint in mints:
             if mint.endswith(name):
+                # print("!!! find it !!!")
                 return i
+            else:
+                continue
+
+            
 
 
 
@@ -80,6 +91,7 @@ def trainGenerator(batch_size,train_path,image_folder,mask_folder,ref_array,aug_
     use the same seed for image_datagen and mask_datagen to ensure the transformation for image and mask is the same
     if you want to visualize the results of generator, set save_to_dir = "your path"
     '''
+    print("------------------trainGenerator initiated-----------------------")
     image_datagen = ImageDataGenerator(**aug_dict)
     mask_datagen = ImageDataGenerator(**aug_dict)
     # ref_datagen = ImageDataGenerator(**aug_dict)
@@ -93,7 +105,7 @@ def trainGenerator(batch_size,train_path,image_folder,mask_folder,ref_array,aug_
         save_to_dir = save_to_dir,
         save_prefix  = image_save_prefix,
         seed = seed)
-    print("file names read from the image generator: ", image_generator.filenames)
+    # print("file names read from the image generator: ", image_generator.filenames)
     mask_generator = mask_datagen.flow_from_directory(
         train_path,
         classes = [mask_folder],
@@ -115,27 +127,37 @@ def trainGenerator(batch_size,train_path,image_folder,mask_folder,ref_array,aug_
     #     save_prefix  = ref_save_prefix,
     #     seed = seed)
     train_generator = zip(image_generator, mask_generator)
+    print("------------------------start concatenating---------------------------")
     for (img,mask) in train_generator:
         idx = (image_generator.batch_index - 1) * image_generator.batch_size
         img_name = image_generator.filenames[idx : (idx + image_generator.batch_size)]
         for i in range(image_generator.batch_size):
             name = img_name[i]
             # first get the index 
-            name = name[:-4] #remove .png
-            if name[-2] == '_':
-                index = name[-1]
+            name1 = name[:-4] #remove .png
+            if name1[-2] == '_':
+                index = name1[-1]
             else:
-                index = name[-2:]
+                index = name1[-2:]
             index = int(index)
+        
+            print("index: ", index)
             # then get which mint it is
             mint = which_mint(name) # the index in the ref_array (where to get the ref)
+            print("mint: ", mint)
+            print("ref_array_shape: ", ref_array.shape)
             ref = ref_array[mint,index,:,:,:]
+            print("ref_shape: ", ref.shape)
+            ref = np.array([ref])
+            print("ref_shape: ", ref.shape)
+            print("image shape: ", img[i].shape)
 
             # concatenate img and ref
-            img = tf.concatenate(img,ref)
+            img = tf.concat(img,ref)
+            
         # print(img_name)
         img,mask = adjustData(img,mask,flag_multi_class,num_class)
-        # print(mask.shape)
+        print(mask.shape)
         yield (img,mask)
 
 
