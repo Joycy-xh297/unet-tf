@@ -13,7 +13,7 @@ import tensorflow as tf
 
 def unet(pretrained_weights = None,input_size = (256,256,1)):
     inputs = Input(input_size)
-    print(inputs.get_shape())
+    # print(inputs.get_shape())
     conv1 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(inputs) #64
     # print(conv1.shape)
     conv1 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1) #64
@@ -71,7 +71,9 @@ def unet(pretrained_weights = None,input_size = (256,256,1)):
     merge9 = concatenate([conv1,up9], axis = 3)
     conv9 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(merge9) #64
     conv9 = Conv2D(32, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv9) #64
+    # print(conv9.shape)
     conv9 = Conv2D(1, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv9) #2
+    # print(conv9.shape)
     conv10 = Conv2D(1, 1, activation = 'sigmoid')(conv9) #1
     # print(conv10.shape)
 

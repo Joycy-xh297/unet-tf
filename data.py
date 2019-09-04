@@ -4,12 +4,51 @@ import numpy as np
 import os, os.path
 import glob
 import skimage.io as io
-import skimage.transform as trans
+import skimage.transform as trans, resize
+import tensorflow as tf
 
 ng = [255, 255, 255]
 bg = [0, 0, 0]
 
 COLOR_DICT = np.array([ng, bg])
+
+def get_ref(ref_dir, sub_dir1, sub_dir2, sub_dir3, size):
+    path1 = ref_dir + sub_dir1
+    path2 = ref_dir + sub_dir2
+    path3 = ref_dir + sub_dir3
+    collection1 = []
+    collection2 = []
+    collection3 = []
+    for file in glob.glob(os.path.join(path1, '*.png')):
+        img = io.imread(file)
+        img = resize(img, size)
+        collection1.append(img)
+    collection1 = np.array(collection1)
+    print("collection1 shape: ", collection1.shape)
+    for file in glob.glob(os.path.join(path2, '*.png')):
+        img = io.imread(file)
+        img = resize(img, size)
+        collection2.append(img)
+    collection2 = np.array(collection2)
+    print("collection2 shape: ", collection2.shape)
+    for file in glob.glob(os.path.join(path3, '*.png')):
+        img = io.imread(file)
+        img = resize(img, size)
+        collection3.append(img)
+    collection3 = np.array(collection3)
+    print("collection3 shape: ", collection3.shape)
+    return np.array([collection1, collection2, collection3])
+
+def which_mint(name):
+    mint1 = [line.rstrip('\n') for line in open("data/RR_mint/mint1.txt")]
+    mint2 = [line.rstrip('\n') for line in open("data/RR_mint/mint2.txt")]
+    mint3 = [line.rstrip('\n') for line in open("data/RR_mint/mint3.txt")]
+    for i,mints in enumerate([mint1, mint2, mint3]):
+        for mint in mints:
+            if mint.endswith(name):
+                return i
+
+
 
 def adjustData(img,mask,flag_multi_class,num_class):
     if(flag_multi_class):
@@ -32,10 +71,10 @@ def adjustData(img,mask,flag_multi_class,num_class):
     return (img,mask)
 
 
-
-def trainGenerator(batch_size,train_path,image_folder,mask_folder,aug_dict,image_color_mode = "grayscale",
+# add ref to the train and test generator
+def trainGenerator(batch_size,train_path,image_folder,mask_folder,ref_array,aug_dict,image_color_mode = "rgb",
                     mask_color_mode = "grayscale",image_save_prefix  = "image",mask_save_prefix  = "mask",
-                    flag_multi_class = False,num_class = 2,save_to_dir = None,target_size = (256,256),seed = 1):
+                    flag_multi_class = False,num_class = 2,save_to_dir = None,target_size = (256,256),seed = 1): # img color mode changed to rgb
     '''
     can generate image and mask at the same time
     use the same seed for image_datagen and mask_datagen to ensure the transformation for image and mask is the same
@@ -43,6 +82,7 @@ def trainGenerator(batch_size,train_path,image_folder,mask_folder,aug_dict,image
     '''
     image_datagen = ImageDataGenerator(**aug_dict)
     mask_datagen = ImageDataGenerator(**aug_dict)
+    # ref_datagen = ImageDataGenerator(**aug_dict)
     image_generator = image_datagen.flow_from_directory(
         train_path,
         classes = [image_folder],
@@ -53,6 +93,7 @@ def trainGenerator(batch_size,train_path,image_folder,mask_folder,aug_dict,image
         save_to_dir = save_to_dir,
         save_prefix  = image_save_prefix,
         seed = seed)
+    print("file names read from the image generator: ", image_generator.filenames)
     mask_generator = mask_datagen.flow_from_directory(
         train_path,
         classes = [mask_folder],
@@ -63,14 +104,43 @@ def trainGenerator(batch_size,train_path,image_folder,mask_folder,aug_dict,image
         save_to_dir = save_to_dir,
         save_prefix  = mask_save_prefix,
         seed = seed)
+    # ref_generator = ref_datagen.flow_from_directory(
+    #     train_path,
+    #     classes = [ref_folder],
+    #     class_mode = None,
+    #     color_mode = ref_color_mode,
+    #     target_size = target_size,
+    #     batch_size = batch_size,
+    #     save_to_dir = save_to_dir,
+    #     save_prefix  = ref_save_prefix,
+    #     seed = seed)
     train_generator = zip(image_generator, mask_generator)
     for (img,mask) in train_generator:
+        idx = (image_generator.batch_index - 1) * image_generator.batch_size
+        img_name = image_generator.filenames[idx : (idx + image_generator.batch_size)]
+        for i in range(image_generator.batch_size):
+            name = img_name[i]
+            # first get the index 
+            name = name[:-4] #remove .png
+            if name[-2] == '_':
+                index = name[-1]
+            else:
+                index = name[-2:]
+            index = int(index)
+            # then get which mint it is
+            mint = which_mint(name) # the index in the ref_array (where to get the ref)
+            ref = ref_array[mint,index,:,:,:]
+
+            # concatenate img and ref
+            img = tf.concatenate(img,ref)
+        # print(img_name)
         img,mask = adjustData(img,mask,flag_multi_class,num_class)
+        # print(mask.shape)
         yield (img,mask)
 
 
 
-def testGenerator(test_path,num_image = 30,target_size = (256,256),flag_multi_class = False,as_gray = True):
+def testGenerator(test_path,num_image = 30,target_size = (256,256),flag_multi_class = False,as_gray = False): #as_gray was True
     for i in range(num_image):
         img = io.imread(os.path.join(test_path,"%d.png"%i),as_gray = as_gray)
         img = img / 255
@@ -78,6 +148,7 @@ def testGenerator(test_path,num_image = 30,target_size = (256,256),flag_multi_cl
         img = np.reshape(img,img.shape+(1,)) if (not flag_multi_class) else img
         img = np.reshape(img,(1,)+img.shape)
         yield img
+
 
 
 def geneTrainNpy(image_path,mask_path,flag_multi_class = False,num_class = 2,image_prefix = "image",mask_prefix = "mask",image_as_gray = True,mask_as_gray = True):

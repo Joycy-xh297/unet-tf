@@ -89,8 +89,8 @@ if __name__ == "__main__":
     txt2 = "mint2.txt"
     txt3 = "mint3.txt"
 
-    save_img_dir = "data/RR_mint/train/image"
-    save_mask_dir = "data/RR_mint/train/mask"
+    save_img_dir = "data/RR_mint/train/image/"
+    save_mask_dir = "data/RR_mint/train/mask/"
     if not os.path.exists(save_img_dir):
         os.makedirs(save_img_dir)
     if not os.path.exists(save_mask_dir):

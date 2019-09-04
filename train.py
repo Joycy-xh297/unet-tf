@@ -18,6 +18,11 @@ def main():
     mint_dir = "data/RR_mint/train/aug/"
     mkdir(mint_dir)
 
+    ref_dir = "data/RR_mint/ref/"
+    sub_dir1 = "mint1/"
+    sub_dir2 = "mint2/"
+    sub_dir3 = "mint3/"
+
     data_gen_args = dict(rotation_range=0.2,
                         width_shift_range=0.05,
                         height_shift_range=0.05,
@@ -25,10 +30,12 @@ def main():
                         zoom_range=0.05,
                         horizontal_flip=True,
                         fill_mode='nearest')
-    
-    """target size specified here as to be proportional to that of the photo dataset"""
-    size = (2480, 976)
-    trainGene = trainGenerator(20,'data/RR_mint/train','image','mask',data_gen_args,save_to_dir = mint_dir, target_size=size)
+   
+    size = (256, 256)
+    ref_array = get_ref(ref_dir, sub_dir1, sub_dir2, sub_dir3, size) # should be of shape (3,73,h,w,3)
+    # print("the shape of ref_array: ", [len(ref_array), ref_array[0].shape])
+    # try by setting the generator batch size to 1 ?
+    trainGene = trainGenerator(20,'data/RR_mint/train','image','mask',ref_array,data_gen_args,save_to_dir = mint_dir, target_size=size)
 
     # to visualise the data augmentation result
     # num_batch = 3
@@ -36,10 +43,10 @@ def main():
     #     if(i >= num_batch):
     #         break
 
-    size = (2480, 976, 1) # not sure if here we should use 3 or 1. according to the original structure we should use 1 but the instruction told 3
+    size = (256, 256, 3) # not sure if here we should use 3 or 1. according to the original structure we should use 1 but the instruction told 3
     model = unet(input_size=size)
 
-    """change the hdf5 name below for training different models"""
+    #change the hdf5 name below for training different models
     hdf5 = 'mint.hdf5'
 
     model_checkpoint = ModelCheckpoint(hdf5, monitor='loss',verbose=1, save_best_only=True)
